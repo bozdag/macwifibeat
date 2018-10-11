@@ -43,7 +43,6 @@ func (bt *Macwifibeat) Run(b *beat.Beat) error {
 	}
 
 	ticker := time.NewTicker(bt.config.Period)
-	counter := 1
 	for {
 		select {
 		case <-bt.done:
@@ -51,16 +50,20 @@ func (bt *Macwifibeat) Run(b *beat.Beat) error {
 		case <-ticker.C:
 		}
 
-		event := beat.Event{
-			Timestamp: time.Now(),
-			Fields: common.MapStr{
-				"type":    b.Info.Name,
-				"counter": counter,
-			},
+		if wifi, err := CollectWifiStrength(); err == nil {
+			event := beat.Event{
+				Timestamp: time.Now(),
+				Fields: common.MapStr{
+					"type":    b.Info.Name,
+					"rssi": wifi.ReceivedSignalStrengthIndication,
+					"noise": wifi.Noise,
+					"txRate": wifi.TransmissionRate,
+					"ssid": wifi.Ssid,
+				},
+			}
+			bt.client.Publish(event)
+			logp.Info("Event sent")
 		}
-		bt.client.Publish(event)
-		logp.Info("Event sent")
-		counter++
 	}
 }
 
